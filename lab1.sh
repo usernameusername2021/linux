@@ -18,7 +18,7 @@ stat -c %h ~/test/links/list_hlink
 stat -c %h ~/test/list
 stat -c %h ~/test/links/list_slink
 #8. Дописать в конец файла list_hlink число строк в файле links.
-cat ~/test/list | wc -l
+cat ~/test/list | wc -l >> ~/test/list_hlink
 #9. Сравнить содержимое файлов list_hlink и list_slink. Вывести на экран YES, если файлы идентичны.
 cmp ~/test/links/list_hlink ~/test/links/list_slink && echo YES
 #10. Переименовать файл list в list1.

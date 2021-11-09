@@ -66,3 +66,9 @@ mv ~/patch ~/man.dir
 patch ~/man.dir/man.txt ~/man.dir/patch
 #30. Сравнить файлы man.txt в домашней каталоге и в каталоге man.dir и вывести YES, если файлы идентичны.
 cmp ~/man.txt ~/man.dir/man.txt && echo YES
+
+
+
+
+#
+{ find /etc -type f -name "*.conf" 2>/dev/null | tee ~/list_conf ; find /etc -maxdepth 1 -type d -name "*.d" 2>/dev/null | tee ~/list_d;} > ~/list_conf_d 

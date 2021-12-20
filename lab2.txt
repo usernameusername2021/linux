@@ -117,3 +117,189 @@ mount.cifs //HOME-PC/hahaha /mnt/share -o username=USER password=PASSWORD
 
 16. Сделайте так, чтобы сетевой ресурс автоматически монтировалcя для чтения при загрузке операционной системы. Перезагрузите операционную систему и проверьте, что автоматическое монтирование ресурса выполнилось.
 Added to /etc/fstab: //HOME-PC/hahaha /mnt/share cifs user=USER,password=PASSWORD,rw,iocharset=utf8 0 0
+
+
+
+Доп задание:
+Создать raid10, симулировать сбой
+создаем раздел на каддом диске 
+sudo fdisk /dev/sd[b-e]
+создание раздела(n)
+тип раздела primary(p)
+
+изменение id раздела(t)
+установка id раздела в Linux raid autodetect(fd)
+применение изменений и выход(w).
+
+sudo mdadm --create /dev/md0 --level=10 --raid-devices=4 /dev/sd[b-e]1
+создлание raid 10
+
+sudo mdadm --detail /dev/md0
+dev/md0:
+           Version : 1.2
+     Creation Time : Mon Nov  8 20:00:56 2021
+        Raid Level : raid10
+        Array Size : 2091008 (2042.00 MiB 2141.19 MB)
+     Used Dev Size : 1045504 (1021.00 MiB 1070.60 MB)
+      Raid Devices : 4
+     Total Devices : 4
+       Persistence : Superblock is persistent
+
+       Update Time : Mon Nov  8 20:01:07 2021
+             State : clean 
+    Active Devices : 4
+   Working Devices : 4
+    Failed Devices : 0
+     Spare Devices : 0
+
+            Layout : near=2
+        Chunk Size : 512K
+
+Consistency Policy : resync
+
+              Name : ubuntu2110:0  (local to host ubuntu2110)
+              UUID : 8296feb8:e715b124:c2abfbdd:84018a1f
+            Events : 17
+
+    Number   Major   Minor   RaidDevice State
+       0       8       17        0      active sync set-A   /dev/sdb1
+       1       8       33        1      active sync set-B   /dev/sdc1
+       2       8       49        2      active sync set-A   /dev/sdd1
+       3       8       65        3      active sync set-B   /dev/sde1
+
+
+
+
+Создание файловой системы ext4 на raid устройстве md0 и монтирование в /mnt/raid10
+mkfs.ext4 /dev/md0
+mkdir /mnt/raid10
+mount /dev/md0 /mnt/raid10/
+
+df -hT /mnt/raid10
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/md0       ext4  2.0G   24K  1.9G   1% /mnt/raid10
+
+Разметка запасного диска
+sudo fdisk /dev/sdf
+Device     Boot Start     End Sectors  Size Id Type
+/dev/sdf1        2048 2097151 2095104 1023M fd Linux raid autodetect
+
+mdadm --add /dev/md0 /dev/sdf1
+
+mdadm --detail /dev/md0
+/dev/md0:
+           Version : 1.2
+     Creation Time : Mon Nov  8 20:00:56 2021
+        Raid Level : raid10
+        Array Size : 2091008 (2042.00 MiB 2141.19 MB)
+     Used Dev Size : 1045504 (1021.00 MiB 1070.60 MB)
+      Raid Devices : 4
+     Total Devices : 5
+       Persistence : Superblock is persistent
+
+       Update Time : Mon Dec 20 10:33:28 2021
+             State : clean 
+    Active Devices : 4
+   Working Devices : 5
+    Failed Devices : 0
+     Spare Devices : 1
+
+            Layout : near=2
+        Chunk Size : 512K
+
+Consistency Policy : resync
+
+              Name : ubuntu2110:0  (local to host ubuntu2110)
+              UUID : 8296feb8:e715b124:c2abfbdd:84018a1f
+            Events : 18
+
+    Number   Major   Minor   RaidDevice State
+       0       8       17        0      active sync set-A   /dev/sdb1
+       1       8       33        1      active sync set-B   /dev/sdc1
+       2       8       49        2      active sync set-A   /dev/sdd1
+       3       8       65        3      active sync set-B   /dev/sde1
+
+       4       8       81        -      spare   /dev/sdf1
+
+sudo cp -r /opt/google/chrome /mnt/raid10
+
+Симуляция сбоя sdb1
+sudo mdadm --manage --fail /dev/md0 /dev/sdb1
+sudo mdadm --detail /dev/md0
+/dev/md0:
+           Version : 1.2
+     Creation Time : Mon Nov  8 20:00:56 2021
+        Raid Level : raid10
+        Array Size : 2091008 (2042.00 MiB 2141.19 MB)
+     Used Dev Size : 1045504 (1021.00 MiB 1070.60 MB)
+      Raid Devices : 4
+     Total Devices : 5
+       Persistence : Superblock is persistent
+
+       Update Time : Mon Dec 20 10:40:27 2021
+             State : clean, degraded, recovering 
+    Active Devices : 3
+   Working Devices : 4
+    Failed Devices : 1
+     Spare Devices : 1
+
+            Layout : near=2
+        Chunk Size : 512K
+
+Consistency Policy : resync
+
+    Rebuild Status : 12% complete
+
+              Name : ubuntu2110:0  (local to host ubuntu2110)
+              UUID : 8296feb8:e715b124:c2abfbdd:84018a1f
+            Events : 22
+
+    Number   Major   Minor   RaidDevice State
+       4       8       81        0      spare rebuilding   /dev/sdf1
+       1       8       33        1      active sync set-B   /dev/sdc1
+       2       8       49        2      active sync set-A   /dev/sdd1
+       3       8       65        3      active sync set-B   /dev/sde1
+
+       0       8       17        -      faulty   /dev/sdb1
+ 
+Удаляем упавший диск       
+sudo mdadm /dev/md0 -r /dev/sdb1
+Добавляем упавший диск 
+sudo mdadm /dev/md0 -a /dev/sdb1
+sudo mdadm --detail /dev/md0
+
+sudo mdadm --detail /dev/md0
+/dev/md0:
+           Version : 1.2
+     Creation Time : Mon Nov  8 20:00:56 2021
+        Raid Level : raid10
+        Array Size : 2091008 (2042.00 MiB 2141.19 MB)
+     Used Dev Size : 1045504 (1021.00 MiB 1070.60 MB)
+      Raid Devices : 4
+     Total Devices : 5
+       Persistence : Superblock is persistent
+
+       Update Time : Mon Dec 20 10:53:22 2021
+             State : clean 
+    Active Devices : 4
+   Working Devices : 5
+    Failed Devices : 0
+     Spare Devices : 1
+
+            Layout : near=2
+        Chunk Size : 512K
+
+Consistency Policy : resync
+
+              Name : ubuntu2110:0  (local to host ubuntu2110)
+              UUID : 8296feb8:e715b124:c2abfbdd:84018a1f
+            Events : 39
+
+    Number   Major   Minor   RaidDevice State
+       4       8       81        0      active sync set-A   /dev/sdf1
+       1       8       33        1      active sync set-B   /dev/sdc1
+       2       8       49        2      active sync set-A   /dev/sdd1
+       3       8       65        3      active sync set-B   /dev/sde1
+
+       5       8       17        -      spare   /dev/sdb1
+
